@@ -1,0 +1,20 @@
+.idea/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# dotenv
+.env
+
+# virtualenv
+.venv
+venv/
+ENV/
+
+# data base
+*.db
