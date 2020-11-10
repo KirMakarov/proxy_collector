@@ -1,0 +1,10 @@
+version: "3.8"
+services:
+  app:
+    build: .
+    volumes:
+    - ./db_data:/server_src/db_data
+    ports:
+    - 7878:7878
+volumes:
+  db_data:
