@@ -5,10 +5,16 @@ import random
 
 import aiohttp
 import requests
+
 from aiohttp import web
 from fake_useragent import UserAgent
 
 from db_connector import StorageProxies
+from logger import Logger
+
+
+logger = Logger('proxy_collector')
+logger.set_logs('console', message_level='debug')
 
 
 class ProxyChecker:
@@ -48,38 +54,37 @@ class ProxyChecker:
     async def refresh(self):
         """Regular check of the health of proxy servers."""
         while True:
-            print('=' * 79)
-            print('Checking outdated proxies')
+            logger.info('Checking outdated proxies')
             tasks_list = [self.proxy_check(proxy_[0]) for proxy_ in self.proxy_db.get_stale()]
             await asyncio.gather(*tasks_list)
 
             working_count_proxies = self.proxy_db.working_count()
-            print('Count actual proxies:', working_count_proxies)
+            logger.info(f'Count actual proxies: {working_count_proxies}')
             if working_count_proxies < self._min_working_proxies:
                 await self.fetch_proxy()
             await asyncio.sleep(self._check_timeout)
 
     async def proxy_check(self, proxy_, check_new_proxy=False):
         """Checks the health of proxy server."""
-        print('Proxy check:', proxy_)
+        logger.debug('Proxy check:', proxy_)
         result = await self._async_check(proxy_)
 
         if result:
-            print(f'Proxy {proxy_} checked, status: OK')
+            logger.debug(f'Proxy {proxy_} checked, status: OK')
             if check_new_proxy:
                 self.proxy_db.add_new(proxy_)
             else:
                 self.proxy_db.update_proxy(proxy_)
         elif not check_new_proxy:
-            print(f'Proxy {proxy_} checked, status: BAD, delete proxy from db')
+            logger.debug(f'Proxy {proxy_} checked, status: BAD, delete proxy from db')
             self.proxy_db.delete(proxy_)
         else:
-            print(f'Proxy {proxy_} checked, status: BAD')
+            logger.debug(f'Proxy {proxy_} checked, status: BAD')
             # TODO add another table for proxy didn't work
 
     async def fetch_proxy(self):
         """Receives new proxy servers"""
-        print('Running fetch new proxies')
+        logger.info('Running fetch new proxies')
         link_to_proxy_list = 'https://api.proxyscrape.com/'
         payload = {
             'request': 'getproxies',
@@ -105,16 +110,16 @@ class ProxyChecker:
 
     async def _async_check(self, proxy_):
         """Async ping the proxy server by sending a http request."""
-        print('Send request with proxy', proxy_)
+        logger.debug('Send request with proxy', proxy_)
         try:
             return await self._async_request_get(proxy_)
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
-            print(f'Proxy {proxy_} check Fail:', err)
+            logger.debug(f'Proxy {proxy_} check Fail:', err)
             return False
 
     async def _async_request_get(self, proxy_):
         """Sends an async http get request to the site through a proxy server."""
-        print('Async request use proxy:', proxy_)
+        logger.debug('Async request use proxy:', proxy_)
         timeout = aiohttp.ClientTimeout(total=5)
         url = random.choice(self.trust_urls)
         async with self.async_semaphore, aiohttp.ClientSession(timeout=timeout) as session:
@@ -134,9 +139,9 @@ class ProxySelector:
         """Selects an arbitrary http proxy server from the database."""
         proxy_ = self.proxy_db.get_random()
         if proxy_:
-            print(f'Send for client ip {request.remote} proxy {proxy_}')
+            logger.info(f'Send for client ip {request.remote} proxy {proxy_}')
             return web.Response(text=proxy_[0])
-        print(f'Can\'t send find proxy, client ip {request.remote}')
+        logger.debug(f'Can\'t send find proxy, client ip {request.remote}')
         return web.Response(text='Unfortunately, we can\'t send a proxy sever.')
 
 
@@ -148,6 +153,7 @@ async def background_tasks(app):
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
+    loop.slow_callback_duration = 1.5
     loop.set_debug(True)
     proxy = ProxySelector()
 
