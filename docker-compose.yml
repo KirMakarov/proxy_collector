@@ -1,10 +1,16 @@
 version: "3.8"
 services:
   app:
+    container_name: proxy_collector
     build: .
     volumes:
-    - ./db_data:/server_src/db_data
+      - ./db_data:/server_src/db_data
     ports:
-    - 7878:7878
+      - 7878:7878
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "5"
+        max-size: "10m"
 volumes:
   db_data:
