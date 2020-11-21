@@ -110,16 +110,16 @@ class ProxyChecker:
 
     async def _async_check(self, proxy_):
         """Async ping the proxy server by sending a http request."""
-        logger.debug('Send request with proxy', proxy_)
+        logger.debug(f'Send request with proxy {proxy_}')
         try:
             return await self._async_request_get(proxy_)
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
-            logger.debug(f'Proxy {proxy_} check Fail:', err)
+            logger.debug(f'Proxy {proxy_} check Fail: {err}')
             return False
 
     async def _async_request_get(self, proxy_):
         """Sends an async http get request to the site through a proxy server."""
-        logger.debug('Async request use proxy:', proxy_)
+        logger.debug(f'Async request use proxy: {proxy_}')
         timeout = aiohttp.ClientTimeout(total=5)
         url = random.choice(self.trust_urls)
         async with self.async_semaphore, aiohttp.ClientSession(timeout=timeout) as session:
